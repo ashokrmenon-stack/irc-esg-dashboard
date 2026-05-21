@@ -1,15 +1,19 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { FileText, Loader2 } from "lucide-react";
+import { Database, Loader2 } from "lucide-react";
 
-type Source = { document_title: string; doc_type: string; chunk_index: number; similarity: number };
-type Msg = { role: "user" | "assistant"; content: string; sources?: Source[] };
+type Sources = {
+  filters: { categories: string[]; years: number[]; locationHints: string[] };
+  rowsReturned: number;
+  truncated: boolean;
+};
+type Msg = { role: "user" | "assistant"; content: string; sources?: Sources };
 
 const SUGGESTIONS = [
-  "What were our 2024 Scope 1+2 emissions?",
-  "Summarise our TCFD climate risk approach.",
-  "Which plants have the highest water intensity?",
-  "How did renewable energy use change 2021–2024?",
+  "What were total Scope 1 emissions in 2024?",
+  "How did water withdrawal change from 2021 to 2024?",
+  "Which years had the highest energy consumption?",
+  "Compare hazardous waste across all years.",
 ];
 
 export function AskClient() {
@@ -70,18 +74,28 @@ export function AskClient() {
               m.role === "user" ? "bg-brand text-white" : "bg-white border border-gray-200"
             }`}>
               <div className="whitespace-pre-wrap text-sm">{m.content}</div>
-              {m.sources && m.sources.length > 0 && (
+              {m.sources && (
                 <div className="mt-3 pt-3 border-t border-gray-200/50">
-                  <div className="text-xs font-medium text-gray-500 mb-1.5">Sources</div>
-                  <div className="space-y-1">
-                    {m.sources.map((s, j) => (
-                      <div key={j} className="flex items-center gap-1.5 text-xs text-gray-600">
-                        <FileText size={11} />
-                        <span className="truncate">{s.document_title}</span>
-                        <span className="text-gray-400">· chunk {s.chunk_index} · {Math.round(s.similarity * 100)}% match</span>
-                      </div>
-                    ))}
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <Database size={11} />
+                    <span>
+                      Queried <strong>{m.sources.rowsReturned}</strong> row{m.sources.rowsReturned === 1 ? "" : "s"} from <code>esg_data</code>
+                      {m.sources.truncated && " (truncated)"}
+                    </span>
                   </div>
+                  {(m.sources.filters.categories.length > 0 || m.sources.filters.years.length > 0 || m.sources.filters.locationHints.length > 0) && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {m.sources.filters.categories.map(c => (
+                        <span key={c} className="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{c}</span>
+                      ))}
+                      {m.sources.filters.years.map(y => (
+                        <span key={y} className="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{y}</span>
+                      ))}
+                      {m.sources.filters.locationHints.map(l => (
+                        <span key={l} className="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{l}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -91,7 +105,7 @@ export function AskClient() {
           <div className="bg-white border border-gray-200 rounded-lg p-4 max-w-[85%]">
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <Loader2 size={14} className="animate-spin" />
-              Searching documents and composing answer…
+              Querying ESG database and composing answer…
             </div>
           </div>
         )}
@@ -104,7 +118,7 @@ export function AskClient() {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about IRC's ESG data, sustainability report, or climate risks…"
+          placeholder="Ask about IRC's ESG data — emissions, energy, water, waste…"
           className="flex-1 border border-gray-300 rounded px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand"
         />
         <button type="submit" disabled={loading || !input.trim()}
